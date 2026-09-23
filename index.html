@@ -110,7 +110,7 @@
     <div class="field">
       <label for="cipherType">Cipher Type</label>
       <select id="cipherType" onchange="updateUI()">
-        <option value="caesar">Caesar Cipher</option>
+        <option value="monoalphabetic">Monoalphabetic Substitution Cipher</option>
         <option value="vigenere">Vigenère Cipher</option>
         <option value="polyalphabetic">Polyalphabetic Substitution Cipher</option>
       </select>
@@ -140,7 +140,7 @@
     const keyLabel = document.getElementById("keyLabel");
     const keyInput = document.getElementById("keyInput");
 
-    if (type === "caesar") {
+    if (type === "monoalphabetic") {
       keyLabel.textContent = "Shift (Number)";
       keyInput.placeholder = "e.g. 3";
     } else if (type === "vigenere") {
@@ -176,7 +176,7 @@
       let result = "";
       let keyIdx = 0;
 
-      if (type === "caesar") {
+      if (type === "monoalphabetic") {
         const shift = parseInt(rawKey);
         if (isNaN(shift)) throw new Error();
         for (let char of text) {

@@ -1,4 +1,4 @@
-def caesar_cipher(text, shift, decrypt=False):
+def monoalphabetic_substitution_cipher(text, shift, decrypt=False):
     if decrypt:
         shift = -shift
     result = ""
