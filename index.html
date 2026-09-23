@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Cipher Tool</title>
+<title>Cipher Tool with Solving Process</title>
 <style>
   :root {
     --primary: #6366f1;
@@ -30,7 +30,7 @@
     background: var(--card-bg);
     backdrop-filter: blur(10px);
     width: 100%;
-    max-width: 440px;
+    max-width: 520px;
     padding: 28px;
     border-radius: 20px;
     box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.05), 0 8px 10px -6px rgba(0, 0, 0, 0.01);
@@ -45,7 +45,7 @@
   }
 
   p.subtitle {
-    margin: 0 0 24px 0;
+    margin: 0 0 20px 0;
     color: var(--subtle);
     font-size: 0.9rem;
     text-align: center;
@@ -61,6 +61,22 @@
     font-size: 0.85rem;
     margin-bottom: 6px;
     color: #334155;
+  }
+
+  .mode-toggle {
+    display: flex;
+    gap: 16px;
+    align-items: center;
+    font-size: 0.9rem;
+  }
+
+  .mode-toggle label {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    font-weight: 500;
+    margin: 0;
+    cursor: pointer;
   }
 
   input, select, textarea {
@@ -83,13 +99,26 @@
 
   textarea {
     resize: vertical;
-    min-height: 75px;
+    min-height: 60px;
   }
 
   .output-box {
     background: #f8fafc;
     color: #0f172a;
     font-family: monospace;
+  }
+
+  .steps-box {
+    background: #1e293b;
+    color: #38bdf8;
+    font-family: monospace;
+    font-size: 0.82rem;
+    padding: 12px;
+    border-radius: 10px;
+    max-height: 180px;
+    overflow-y: auto;
+    white-space: pre-wrap;
+    line-height: 1.5;
   }
 
   .error {
@@ -105,7 +134,7 @@
 
   <div class="card">
     <h2>Cipher Tool</h2>
-    <p class="subtitle">Real-time encryption tool</p>
+    <p class="subtitle">Real-time encryption & decryption tool</p>
 
     <div class="field">
       <label for="cipherType">Cipher Type</label>
@@ -114,6 +143,14 @@
         <option value="vigenere">Vigenère Cipher</option>
         <option value="polyalphabetic">Polyalphabetic Substitution Cipher</option>
       </select>
+    </div>
+
+    <div class="field">
+      <label>Mode</label>
+      <div class="mode-toggle">
+        <label><input type="radio" name="mode" value="encrypt" checked onchange="updateUI()"> Encrypt</label>
+        <label><input type="radio" name="mode" value="decrypt" onchange="updateUI()"> Decrypt</label>
+      </div>
     </div>
 
     <div class="field">
@@ -128,9 +165,14 @@
 
     <div class="error" id="errorBox"></div>
 
-    <div class="field" style="margin-bottom: 0;">
-      <label for="output">Encrypted Result</label>
+    <div class="field">
+      <label id="outputLabel" for="output">Encrypted Result</label>
       <textarea id="output" class="output-box" readonly></textarea>
+    </div>
+
+    <div class="field" style="margin-bottom: 0;">
+      <label>Step-by-Step Solving Process</label>
+      <div id="stepsBox" class="steps-box">Enter text and a key to see the calculations...</div>
     </div>
   </div>
 
@@ -147,72 +189,122 @@
       keyLabel.textContent = "Keyword (Letters)";
       keyInput.placeholder = "e.g. KEY";
     } else if (type === "polyalphabetic") {
-      keyLabel.textContent = "Keys (Numbers separated by spaces)";
-      keyInput.placeholder = "e.g. 1 4 7";
+      keyLabel.textContent = "Initial Key (Number)";
+      keyInput.placeholder = "e.g. 12";
     }
     processCipher();
   }
 
-  function shiftChar(char, shift) {
-    const base = char === char.toUpperCase() ? 65 : 97;
-    return String.fromCharCode((char.charCodeAt(0) - base + shift % 26 + 26) % 26 + base);
+  function shiftCharWithSteps(char, shift) {
+    const isUpper = char === char.toUpperCase();
+    const base = isUpper ? 65 : 97;
+    const origPos = char.charCodeAt(0) - base;
+    const rawSum = origPos + shift;
+    const newPos = (rawSum % 26 + 26) % 26;
+    const newChar = String.fromCharCode(newPos + base);
+
+    const stepText = `'${char}' (${origPos}) + key(${shift}) = ${rawSum} mod 26 = ${newPos} -> '${newChar}'`;
+
+    return { char: newChar, step: stepText, origPos: origPos, newPos: newPos };
   }
 
   function processCipher() {
     const text = document.getElementById("message").value;
     const rawKey = document.getElementById("keyInput").value.trim();
     const type = document.getElementById("cipherType").value;
+    const isDecrypt = document.querySelector('input[name="mode"]:checked').value === "decrypt";
     const errorBox = document.getElementById("errorBox");
     const output = document.getElementById("output");
+    const outputLabel = document.getElementById("outputLabel");
+    const stepsBox = document.getElementById("stepsBox");
 
+    outputLabel.textContent = isDecrypt ? "Decrypted Result" : "Encrypted Result";
     errorBox.textContent = "";
 
     if (!text || !rawKey) {
       output.value = "";
+      stepsBox.textContent = "Enter text and a key to see the calculations...";
       return;
     }
 
     try {
       let result = "";
-      let keyIdx = 0;
+      let steps = [];
 
       if (type === "monoalphabetic") {
-        const shift = parseInt(rawKey);
+        let shift = parseInt(rawKey);
         if (isNaN(shift)) throw new Error();
+        if (isDecrypt) shift = -shift;
+
         for (let char of text) {
-          result += /[a-zA-Z]/.test(char) ? shiftChar(char, shift) : char;
+          if (/[a-zA-Z]/.test(char)) {
+            const res = shiftCharWithSteps(char, shift);
+            result += res.char;
+            steps.push(res.step);
+          } else {
+            result += char;
+            steps.push(`'${char}' (Skipped)`);
+          }
         }
       } 
       else if (type === "vigenere") {
         const key = rawKey.toUpperCase();
+        let keyIdx = 0;
         for (let char of text) {
           if (/[a-zA-Z]/.test(char)) {
-            let shift = key.charCodeAt(keyIdx % key.length) - 65;
-            result += shiftChar(char, shift);
+            const keyChar = key[keyIdx % key.length];
+            const keyShift = keyChar.charCodeAt(0) - 65;
+            let shift = isDecrypt ? -keyShift : keyShift;
+
+            const res = shiftCharWithSteps(char, shift);
+            result += res.char;
+            steps.push(`[Key: ${keyChar}] ` + res.step);
             keyIdx++;
           } else {
             result += char;
+            steps.push(`'${char}' (Skipped)`);
           }
         }
       } 
       else if (type === "polyalphabetic") {
-        const keys = rawKey.split(/\s+/).map(Number);
-        if (keys.some(isNaN)) throw new Error();
+        let currentKey = parseInt(rawKey);
+        if (isNaN(currentKey)) throw new Error();
+
         for (let char of text.toUpperCase()) {
           if (/[a-zA-Z]/.test(char)) {
-            let shift = keys[keyIdx % keys.length];
-            result += shiftChar(char, shift);
-            keyIdx++;
+            if (!isDecrypt) {
+              // Encryption: key for step 1 is initial key, then subsequent keys are previous plaintext values
+              const res = shiftCharWithSteps(char, currentKey);
+              result += res.char;
+              steps.push(`[Subkey: ${currentKey}] ` + res.step);
+              currentKey = res.origPos; // set next subkey as current plaintext value
+            } else {
+              // Decryption: P = (C - key) mod 26
+              const cVal = char.charCodeAt(0) - 65;
+              const pVal = (cVal - currentKey % 26 + 26) % 26;
+              const pChar = String.fromCharCode(pVal + 65);
+              
+              result += pChar;
+              steps.push(`[Subkey: ${currentKey}] '${char}' (${cVal}) - key(${currentKey}) = ${cVal - currentKey} mod 26 = ${pVal} -> '${pChar}'`);
+              currentKey = pVal; // set next subkey as recovered plaintext value
+            }
+          } else {
+            result += char;
+            steps.push(`'${char}' (Skipped)`);
           }
         }
       }
 
       output.value = result;
+      stepsBox.textContent = steps.join("\n");
     } catch (e) {
       errorBox.textContent = "Invalid key format.";
       output.value = "";
+      stepsBox.textContent = "Error calculating steps.";
     }
   }
+
+  updateUI();
 </script>
 </body>
 </html>
